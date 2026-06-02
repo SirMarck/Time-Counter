@@ -7,6 +7,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.Client
 import com.example.utils.FormatUtils
 import com.example.viewmodel.TimeTrackerViewModel
+import kotlinx.coroutines.launch
 
 import com.example.ui.theme.luxBorder
 
@@ -23,9 +26,43 @@ import com.example.ui.theme.luxBorder
 fun ClientsScreen(viewModel: TimeTrackerViewModel) {
     val clients by viewModel.clients.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Meus Clientes") }) },
+        topBar = { 
+            TopAppBar(
+                title = { Text("Meus Clientes") },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configurações")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Procurar Atualizações") },
+                                onClick = {
+                                    showMenu = false
+                                    scope.launch {
+                                        val found = com.example.utils.UpdateManager.checkForUpdates(context)
+                                        if (!found) {
+                                            android.widget.Toast.makeText(context, "Nenhuma atualização encontrada.", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Update, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+            ) 
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Adicionar Cliente")

@@ -3,6 +3,9 @@ package com.example.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -12,6 +15,7 @@ import com.example.data.Client
 import com.example.data.Session
 import com.example.utils.FormatUtils
 import com.example.viewmodel.TimeTrackerViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -34,6 +38,10 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
         set(Calendar.YEAR, currentYear)
     }.time).replaceFirstChar { it.uppercase() }
 
+    var showMenu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     // Calculate report data
     val reportData = remember(sessions, clients, currentMonth, currentYear) {
         val data = mutableMapOf<Client, MutableList<Session>>()
@@ -51,7 +59,38 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Relatórios") }) }
+        topBar = { 
+            TopAppBar(
+                title = { Text("Relatórios") },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configurações")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Procurar Atualizações") },
+                                onClick = {
+                                    showMenu = false
+                                    scope.launch {
+                                        val found = com.example.utils.UpdateManager.checkForUpdates(context)
+                                        if (!found) {
+                                            android.widget.Toast.makeText(context, "Nenhuma atualização encontrada.", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Update, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+            )
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)
