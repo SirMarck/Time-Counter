@@ -1,0 +1,160 @@
+package com.example.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.data.Client
+import com.example.data.Session
+import com.example.utils.FormatUtils
+import com.example.viewmodel.TimeTrackerViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportsScreen(viewModel: TimeTrackerViewModel) {
+    val clients by viewModel.clients.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+
+    // Default to current month
+    val calendar = Calendar.getInstance()
+    var currentMonth by remember { mutableIntStateOf(calendar.get(Calendar.MONTH)) }
+    var currentYear by remember { mutableIntStateOf(calendar.get(Calendar.YEAR)) }
+
+    val monthName = SimpleDateFormat("MMMM yyyy", Locale("pt", "BR")).format(calendar.apply {
+        set(Calendar.MONTH, currentMonth)
+        set(Calendar.YEAR, currentYear)
+    }.time).replaceFirstChar { it.uppercase() }
+
+    // Calculate report data
+    val reportData = remember(sessions, clients, currentMonth, currentYear) {
+        val data = mutableMapOf<Client, MutableList<Session>>()
+        sessions.filter { it.endTime != null }.forEach { session ->
+            val cal = Calendar.getInstance().apply { timeInMillis = session.startTime }
+            if (cal.get(Calendar.MONTH) == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
+                val client = clients.find { it.id == session.clientId }
+                if (client != null) {
+                    if (!data.containsKey(client)) data[client] = mutableListOf()
+                    data[client]!!.add(session)
+                }
+            }
+        }
+        data
+    }
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Relatórios") }) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                TextButton(onClick = {
+                    if (currentMonth == 0) { currentMonth = 11; currentYear-- } else currentMonth--
+                }) { Text("< Anterior") }
+                
+                Text(monthName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                
+                TextButton(onClick = {
+                    if (currentMonth == 11) { currentMonth = 0; currentYear++ } else currentMonth++
+                }) { Text("Próximo >") }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (reportData.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text("Nenhum dado para este mês.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(reportData.keys.toList()) { client ->
+                        ClientReportCard(client, reportData[client]!!, monthName)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ClientReportCard(client: Client, sessions: List<Session>, monthName: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var totalDuration = 0L
+    sessions.forEach { totalDuration += (it.endTime!! - it.startTime) }
+    
+    val totalHours = totalDuration.toDouble() / (1000 * 60 * 60)
+    val totalValue = totalHours * client.hourlyRate
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(client.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Total Horas:", style = MaterialTheme.typography.bodyMedium)
+                Text(FormatUtils.formatDuration(totalDuration), fontWeight = FontWeight.Bold)
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Valor Total a Cobrar:", style = MaterialTheme.typography.bodyLarge)
+                Text(FormatUtils.formatCurrency(totalValue), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Detalhes de Serviço:", style = MaterialTheme.typography.labelMedium)
+            sessions.forEach { session ->
+                val duration = session.endTime!! - session.startTime
+                val valItem = (duration.toDouble() / (1000 * 60 * 60)) * client.hourlyRate
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(FormatUtils.formatDate(session.startTime), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(session.description, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(FormatUtils.formatCurrency(valItem), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                OutlinedButton(
+                    onClick = {
+                        val file = com.example.utils.ExportUtils.generateImage(context, client, sessions, monthName)
+                        if (file != null) {
+                            com.example.utils.ExportUtils.shareFile(context, file, "image/png")
+                        }
+                    },
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text("Exportar IMG", style = MaterialTheme.typography.labelSmall)
+                }
+                Button(
+                    onClick = {
+                        val file = com.example.utils.ExportUtils.generatePdf(context, client, sessions, monthName)
+                        if (file != null) {
+                            com.example.utils.ExportUtils.shareFile(context, file, "application/pdf")
+                        }
+                    }
+                ) {
+                    Text("Exportar PDF", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
