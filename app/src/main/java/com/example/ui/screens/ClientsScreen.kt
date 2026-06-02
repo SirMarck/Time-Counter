@@ -16,6 +16,8 @@ import com.example.data.Client
 import com.example.utils.FormatUtils
 import com.example.viewmodel.TimeTrackerViewModel
 
+import com.example.ui.theme.luxBorder
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientsScreen(viewModel: TimeTrackerViewModel) {
@@ -58,8 +60,10 @@ fun ClientsScreen(viewModel: TimeTrackerViewModel) {
 @Composable
 fun ClientItem(client: Client, onDelete: () -> Unit) {
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {

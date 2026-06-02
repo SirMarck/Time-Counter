@@ -25,6 +25,8 @@ import com.example.viewmodel.TimeTrackerViewModelFactory
 import com.example.workers.ReminderWorker
 import java.util.concurrent.TimeUnit
 
+import com.example.ui.theme.grainEffect
+
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -47,7 +49,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .grainEffect()
+                ) {
                     MainScreen(viewModel = viewModel)
                 }
             }

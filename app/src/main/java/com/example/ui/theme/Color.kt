@@ -2,23 +2,23 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val SleekPrimary = Color(0xFF6750A4)
-val SleekOnPrimary = Color(0xFFFFFFFF)
-val SleekPrimaryContainer = Color(0xFFEADDFF)
-val SleekOnPrimaryContainer = Color(0xFF21005D)
+val LuxGreenPrimary = Color(0xFF6BF5A5)
+val LuxGreenOnPrimary = Color(0xFF092918)
+val LuxGreenPrimaryContainer = Color(0xFF1C422A)
+val LuxGreenOnPrimaryContainer = Color(0xFFC4FFDC)
 
-val SleekSecondary = Color(0xFFD0BCFF)
-val SleekOnSecondary = Color(0xFF381E72)
-val SleekSecondaryContainer = Color(0xFFEADDFF)
-val SleekOnSecondaryContainer = Color(0xFF21005D)
+val LuxGreenSecondary = Color(0xFF3FEA88)
+val LuxGreenOnSecondary = Color(0xFF092918)
+val LuxGreenSecondaryContainer = Color(0xFF1E7547)
+val LuxGreenOnSecondaryContainer = Color(0xFFC4FFDC)
 
-val SleekBackground = Color(0xFFFAF9FD)
-val SleekOnBackground = Color(0xFF1C1B1F)
+val LuxGreenBackground = Color(0xFF111713)
+val LuxGreenOnBackground = Color(0xFFE8ECE9)
 
-val SleekSurface = Color(0xFFFFFFFF)
-val SleekOnSurface = Color(0xFF1C1B1F)
+val LuxGreenSurface = Color(0xFF1A221C)
+val LuxGreenOnSurface = Color(0xFFE8ECE9)
 
-val SleekSurfaceVariant = Color(0xFFF3F0F5)
-val SleekOnSurfaceVariant = Color(0xFF49454F)
+val LuxGreenSurfaceVariant = Color(0xFF223126)
+val LuxGreenOnSurfaceVariant = Color(0xFFAAB8AF)
 
-val SleekOutline = Color(0xFFCAC4D0)
+val LuxGreenOutline = Color(0xFF3A5244)

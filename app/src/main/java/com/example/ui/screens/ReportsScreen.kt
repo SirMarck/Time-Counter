@@ -16,6 +16,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+import com.example.ui.theme.luxBorder
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(viewModel: TimeTrackerViewModel) {
@@ -77,7 +79,7 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
                     Text("Nenhum dado para este mês.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(modifier = Modifier.weight(1f)) {
                     items(reportData.keys.toList()) { client ->
                         ClientReportCard(client, reportData[client]!!, monthName)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -98,8 +100,10 @@ fun ClientReportCard(client: Client, sessions: List<Session>, monthName: String)
     val totalValue = totalHours * client.hourlyRate
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         )

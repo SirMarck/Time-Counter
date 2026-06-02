@@ -1,23 +1,32 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.Client
 import com.example.data.Session
 import com.example.utils.FormatUtils
+import com.example.utils.UpdateManager
 import com.example.viewmodel.TimeTrackerViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Calendar
+
+import androidx.compose.material.icons.filled.Settings
+
+import com.example.ui.theme.luxBorder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +36,9 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
     val activeSession by viewModel.activeSession.collectAsState()
 
     var showStartDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Calculate estimating earnings this month
     var estimatedEarnings by remember { mutableStateOf(0.0) }
@@ -51,7 +63,36 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Dashboard") })
+            TopAppBar(
+                title = { Text("Dashboard", fontWeight = FontWeight.Bold) },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configurações")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Procurar Atualizações") },
+                                onClick = {
+                                    showMenu = false
+                                    scope.launch {
+                                        val found = UpdateManager.checkForUpdates(context)
+                                        if (!found) {
+                                            Toast.makeText(context, "Nenhuma atualização encontrada.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Update, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+            )
         },
         floatingActionButton = {
             if (activeSession == null && clients.isNotEmpty()) {
@@ -78,8 +119,10 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
                 .padding(16.dp)
         ) {
             ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -118,7 +161,7 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
             if (completedSessions.isEmpty()) {
                 Text("Nenhum trabalho finalizado ainda.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                LazyColumn {
+                LazyColumn(modifier = Modifier.weight(1f)) {
                     items(completedSessions) { session ->
                         val client = clients.find { it.id == session.clientId }
                         SessionItem(session, client)
@@ -153,8 +196,10 @@ fun ActiveSessionCard(session: Session, clients: List<Client>) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -200,8 +245,10 @@ fun ActiveSessionCard(session: Session, clients: List<Client>) {
 @Composable
 fun SessionItem(session: Session, client: Client?) {
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
