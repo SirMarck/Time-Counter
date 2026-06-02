@@ -22,9 +22,12 @@ jobs:
         distribution: 'temurin'
 
     - name: Configurar Gradle
-      uses: gradle/actions/setup-gradle@v3
+      uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: '8.7'
+
+    - name: Preparar debug.keystore
+      run: base64 -d debug.keystore.base64 > debug.keystore
 
     - name: Compilar o APK
       run: gradle assembleDebug
