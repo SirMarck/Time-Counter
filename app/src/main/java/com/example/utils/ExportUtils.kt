@@ -16,6 +16,7 @@ import java.io.FileOutputStream
 
 object ExportUtils {
     private fun drawReportContent(
+        context: Context,
         canvas: Canvas,
         width: Float,
         client: Client,
@@ -28,22 +29,34 @@ object ExportUtils {
 
         paint.color = Color.BLACK
         paint.isAntiAlias = true
+        paint.textAlign = Paint.Align.LEFT
 
         var y = 60f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         paint.textSize = 28f
         canvas.drawText("Relatório Comercial", 50f, y, paint)
 
-        y += 40f
+        y += 35f
         paint.typeface = Typeface.DEFAULT
-        paint.textSize = 20f
-        canvas.drawText("Mês: $monthName", 50f, y, paint)
-        y += 30f
+        paint.textSize = 15f
+        paint.color = Color.GRAY
+        val reportDate = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+        canvas.drawText("Gerado em: $reportDate", 50f, y, paint)
+
+        y += 50f
+        paint.color = Color.BLACK
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        paint.textSize = 26f // Enfatizado - Nome do cliente maior
         canvas.drawText("Cliente: ${client.name}", 50f, y, paint)
+
+        y += 35f
+        paint.typeface = Typeface.DEFAULT
+        paint.textSize = 18f
+        canvas.drawText("Mês de Referência: $monthName", 50f, y, paint)
         y += 30f
 
         var totalDuration = 0L
-        sessions.forEach { totalDuration += (it.endTime!! - it.startTime) }
+        sessions.forEach { totalDuration += maxOf(0L, (it.endTime!! - it.startTime) - it.pausedDuration) }
         val totalHours = totalDuration.toDouble() / (1000 * 60 * 60)
         val totalValue = totalHours * client.hourlyRate
 
@@ -66,7 +79,7 @@ object ExportUtils {
         paint.textSize = 16f
         
         for (session in sessions.sortedBy { it.startTime }) {
-            val duration = session.endTime!! - session.startTime
+            val duration = maxOf(0L, (session.endTime!! - session.startTime) - session.pausedDuration)
             val valItem = (duration.toDouble() / (1000 * 60 * 60)) * client.hourlyRate
             val dateStr = FormatUtils.formatDate(session.startTime)
             val desc = if (session.description.length > 45) session.description.take(42) + "..." else session.description
@@ -80,10 +93,22 @@ object ExportUtils {
             paint.color = Color.BLACK
         }
         
-        y += 20f
+        y += 40f
         paint.textSize = 14f
-        paint.color = Color.GRAY
+        paint.color = Color.DKGRAY
         paint.textAlign = Paint.Align.CENTER
+        
+        val sharedPrefs = context.getSharedPreferences("time_tracker_prefs", Context.MODE_PRIVATE)
+        val compName = sharedPrefs.getString("company_name", "") ?: ""
+        val compCnpj = sharedPrefs.getString("company_cnpj", "") ?: ""
+        
+        if (compName.isNotEmpty()) {
+            val footerText = if (compCnpj.isNotEmpty()) "$compName — CNPJ: $compCnpj" else compName
+            canvas.drawText(footerText, width / 2, y, paint)
+            y += 20f
+        }
+        
+        paint.color = Color.GRAY
         canvas.drawText("Gerado por TempoTrack", width / 2, y, paint)
     }
 
@@ -91,12 +116,12 @@ object ExportUtils {
         try {
             val document = PdfDocument()
             val width = 595
-            val height = maxOf(842, 350 + sessions.size * 60)
+            val height = maxOf(842, 350 + sessions.size * 60 + 100)
             val pageInfo = PdfDocument.PageInfo.Builder(width, height, 1).create()
             val page = document.startPage(pageInfo)
             
             val paint = Paint()
-            drawReportContent(page.canvas, width.toFloat(), client, sessions, monthName, paint)
+            drawReportContent(context, page.canvas, width.toFloat(), client, sessions, monthName, paint)
             
             document.finishPage(page)
             
@@ -116,12 +141,12 @@ object ExportUtils {
     fun generateImage(context: Context, client: Client, sessions: List<Session>, monthName: String): File? {
         try {
             val width = 600
-            val height = maxOf(800, 350 + sessions.size * 60)
+            val height = maxOf(800, 350 + sessions.size * 60 + 100)
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val paint = Paint()
             
-            drawReportContent(canvas, width.toFloat(), client, sessions, monthName, paint)
+            drawReportContent(context, canvas, width.toFloat(), client, sessions, monthName, paint)
             
             val exportsDir = File(context.cacheDir, "exports").apply { mkdirs() }
             val file = File(exportsDir, "Relatorio_${client.name.replace(" ", "_")}_$monthName.png")

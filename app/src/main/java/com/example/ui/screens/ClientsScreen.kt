@@ -27,6 +27,7 @@ fun ClientsScreen(viewModel: TimeTrackerViewModel) {
     val clients by viewModel.clients.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -43,6 +44,16 @@ fun ClientsScreen(viewModel: TimeTrackerViewModel) {
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Configurar Empresa") },
+                                onClick = {
+                                    showMenu = false
+                                    showSettingsDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Settings, contentDescription = null)
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Procurar Atualizações") },
                                 onClick = {
@@ -88,6 +99,10 @@ fun ClientsScreen(viewModel: TimeTrackerViewModel) {
                     showAddDialog = false
                 }
             )
+        }
+
+        if (showSettingsDialog) {
+            CompanySettingsDialog(onDismiss = { showSettingsDialog = false })
         }
     }
 }

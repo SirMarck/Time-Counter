@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,6 +38,7 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
 
     var showStartDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -53,7 +55,8 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
             if (cal.get(Calendar.MONTH) == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
                 val client = clients.find { it.id == session.clientId }
                 if (client != null) {
-                    val durationHours = (session.endTime!! - session.startTime).toDouble() / (1000 * 60 * 60)
+                    val durationMillis = maxOf(0L, (session.endTime!! - session.startTime) - session.pausedDuration)
+                    val durationHours = durationMillis.toDouble() / (1000 * 60 * 60)
                     total += durationHours * client.hourlyRate
                 }
             }
@@ -74,6 +77,16 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Configurar Empresa") },
+                                onClick = {
+                                    showMenu = false
+                                    showSettingsDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Settings, contentDescription = null)
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Procurar Atualizações") },
                                 onClick = {
@@ -148,7 +161,12 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
             
             if (activeSession != null) {
-                ActiveSessionCard(activeSession!!, clients)
+                ActiveSessionCard(
+                    session = activeSession!!,
+                    clients = clients,
+                    onPause = { viewModel.pauseActiveSession() },
+                    onResume = { viewModel.resumeActiveSession() }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -179,64 +197,160 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
                 }
             )
         }
+
+        if (showSettingsDialog) {
+            CompanySettingsDialog(onDismiss = { showSettingsDialog = false })
+        }
     }
 }
 
 @Composable
-fun ActiveSessionCard(session: Session, clients: List<Client>) {
+fun ActiveSessionCard(
+    session: Session,
+    clients: List<Client>,
+    onPause: () -> Unit,
+    onResume: () -> Unit
+) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000)
-            currentTime = System.currentTimeMillis()
+    LaunchedEffect(session.isPaused) {
+        if (!session.isPaused) {
+            while (true) {
+                delay(1000)
+                currentTime = System.currentTimeMillis()
+            }
         }
+    }
+
+    val isPaused = session.isPaused
+    val backgroundColor = if (isPaused) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val contentColor = if (isPaused) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimary
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            containerColor = backgroundColor,
+            contentColor = contentColor
         )
     ) {
         val client = clients.find { it.id == session.clientId }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Timer Ativo", 
-                    style = MaterialTheme.typography.labelMedium, 
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                if (client != null) {
-                    Text(client.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = if (isPaused) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                            contentColor = if (isPaused) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                        ) {
+                            Text(
+                                text = if (isPaused) "PAUSADO" else "EM ANDAMENTO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (client != null) {
+                        Text(client.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    if (session.description.isNotEmpty()) {
+                        Text(
+                            session.description, 
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = contentColor.copy(alpha = 0.8f),
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 }
-                Text(
-                    session.description, 
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
+                
+                val duration = if (isPaused) {
+                    maxOf(0L, (session.lastPausedTime ?: currentTime) - session.startTime - session.pausedDuration)
+                } else {
+                    maxOf(0L, currentTime - session.startTime - session.pausedDuration)
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = FormatUtils.formatDuration(duration),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
             
-            val duration = currentTime - session.startTime
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = FormatUtils.formatDuration(duration),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Medium
-                )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isPaused) {
+                    Button(
+                        onClick = onResume,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Retomar")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Retomar")
+                    }
+                } else {
+                    FilledTonalButton(
+                        onClick = onPause,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        PauseIcon(color = MaterialTheme.colorScheme.onErrorContainer)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pausar")
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+fun PauseIcon(color: androidx.compose.ui.graphics.Color) {
+    Row(
+        modifier = Modifier.size(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.width(3.dp).height(12.dp).background(color, shape = androidx.compose.foundation.shape.RoundedCornerShape(1.dp)))
+        Box(modifier = Modifier.width(3.dp).height(12.dp).background(color, shape = androidx.compose.foundation.shape.RoundedCornerShape(1.dp)))
     }
 }
 
@@ -258,7 +372,7 @@ fun SessionItem(session: Session, client: Client?) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(session.description, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            val duration = if (session.endTime != null) session.endTime - session.startTime else 0L
+            val duration = if (session.endTime != null) maxOf(0L, (session.endTime - session.startTime) - session.pausedDuration) else 0L
             val value = if (client != null) {
                 (duration.toDouble() / (1000 * 60 * 60)) * client.hourlyRate
             } else 0.0

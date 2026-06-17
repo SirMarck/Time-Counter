@@ -22,5 +22,8 @@ data class Session(
     val clientId: Long,
     val startTime: Long,
     val endTime: Long? = null,
-    val description: String = ""
+    val description: String = "",
+    val isPaused: Boolean = false,
+    val lastPausedTime: Long? = null,
+    val pausedDuration: Long = 0L
 )

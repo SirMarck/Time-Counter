@@ -47,7 +47,44 @@ class TimeTrackerViewModel(private val repository: TimeTrackerRepository) : View
         viewModelScope.launch {
             val session = activeSession.value
             if (session != null) {
-                repository.updateSession(session.copy(endTime = System.currentTimeMillis()))
+                val now = System.currentTimeMillis()
+                if (session.isPaused) {
+                    val finalEndTime = session.lastPausedTime ?: now
+                    repository.updateSession(session.copy(endTime = finalEndTime))
+                } else {
+                    repository.updateSession(session.copy(endTime = now))
+                }
+            }
+        }
+    }
+
+    fun pauseActiveSession() {
+        viewModelScope.launch {
+            val session = activeSession.value
+            if (session != null && !session.isPaused) {
+                repository.updateSession(
+                    session.copy(
+                        isPaused = true,
+                        lastPausedTime = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun resumeActiveSession() {
+        viewModelScope.launch {
+            val session = activeSession.value
+            if (session != null && session.isPaused) {
+                val now = System.currentTimeMillis()
+                val addedPause = now - (session.lastPausedTime ?: now)
+                repository.updateSession(
+                    session.copy(
+                        isPaused = false,
+                        lastPausedTime = null,
+                        pausedDuration = session.pausedDuration + addedPause
+                    )
+                )
             }
         }
     }

@@ -39,6 +39,7 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
     }.time).replaceFirstChar { it.uppercase() }
 
     var showMenu by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -71,6 +72,16 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Configurar Empresa") },
+                                onClick = {
+                                    showMenu = false
+                                    showSettingsDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Settings, contentDescription = null)
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Procurar Atualizações") },
                                 onClick = {
@@ -123,6 +134,10 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
                     }
                 }
             }
+
+            if (showSettingsDialog) {
+                CompanySettingsDialog(onDismiss = { showSettingsDialog = false })
+            }
         }
     }
 }
@@ -131,7 +146,7 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
 fun ClientReportCard(client: Client, sessions: List<Session>, monthName: String) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var totalDuration = 0L
-    sessions.forEach { totalDuration += (it.endTime!! - it.startTime) }
+    sessions.forEach { totalDuration += maxOf(0L, (it.endTime!! - it.startTime) - it.pausedDuration) }
     
     val totalHours = totalDuration.toDouble() / (1000 * 60 * 60)
     val totalValue = totalHours * client.hourlyRate
@@ -161,7 +176,7 @@ fun ClientReportCard(client: Client, sessions: List<Session>, monthName: String)
             Spacer(modifier = Modifier.height(8.dp))
             Text("Detalhes de Serviço:", style = MaterialTheme.typography.labelMedium)
             sessions.forEach { session ->
-                val duration = session.endTime!! - session.startTime
+                val duration = maxOf(0L, (session.endTime!! - session.startTime) - session.pausedDuration)
                 val valItem = (duration.toDouble() / (1000 * 60 * 60)) * client.hourlyRate
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(modifier = Modifier.weight(1f)) {
