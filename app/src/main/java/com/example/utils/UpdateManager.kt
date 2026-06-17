@@ -18,20 +18,36 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+sealed class UpdateResult {
+    object Downloading : UpdateResult()
+    object AlreadyLatest : UpdateResult()
+    object RepoNotFoundOrPrivate : UpdateResult()
+    object RateLimitOrForbidden : UpdateResult()
+    data class Error(val message: String) : UpdateResult()
+}
+
 object UpdateManager {
 
     // Substitua pelo seu repo no GitHub: "usuario/repositorio"
     private const val REPO_NAME = "SirMarck/Time-Counter"
     private const val GITHUB_API_URL = "https://api.github.com/repos/$REPO_NAME/releases/latest"
 
-    suspend fun checkForUpdates(context: Context): Boolean = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdates(context: Context): UpdateResult = withContext(Dispatchers.IO) {
         try {
             val url = URL(GITHUB_API_URL)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
 
-            if (connection.responseCode == 200) {
+            val responseCode = connection.responseCode
+            if (responseCode == 404) {
+                return@withContext UpdateResult.RepoNotFoundOrPrivate
+            }
+            if (responseCode == 401 || responseCode == 403) {
+                return@withContext UpdateResult.RateLimitOrForbidden
+            }
+
+            if (responseCode == 200) {
                 val response = connection.inputStream.bufferedReader().readText()
                 val jsonObject = JSONObject(response)
                 
@@ -48,19 +64,23 @@ object UpdateManager {
                             withContext(Dispatchers.Main) {
                                 startDownload(context, downloadUrl, latestVersion)
                             }
-                            return@withContext true
+                            return@withContext UpdateResult.Downloading
                         }
                     }
+                } else {
+                    return@withContext UpdateResult.AlreadyLatest
                 }
+            } else {
+                return@withContext UpdateResult.Error("Código HTTP: $responseCode")
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            return@withContext UpdateResult.Error(e.localizedMessage ?: "Erro de conexão")
         }
-        return@withContext false
+        return@withContext UpdateResult.AlreadyLatest
     }
 
     private fun isNewerVersion(current: String, latest: String): Boolean {
-        // Lógica simples de comparação de versão (ex: "1.0" vs "1.1")
         val currentParts = current.split(".").map { it.toIntOrNull() ?: 0 }
         val latestParts = latest.split(".").map { it.toIntOrNull() ?: 0 }
         
@@ -126,6 +146,26 @@ object UpdateManager {
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(context, "Erro ao tentar instalar a atualização.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun handleUpdateResult(context: Context, result: UpdateResult) {
+        when (result) {
+            is UpdateResult.Downloading -> {
+                // Já inicia e mostra o Toast "Baixando..."
+            }
+            is UpdateResult.AlreadyLatest -> {
+                Toast.makeText(context, "Sua versão está atualizada!", Toast.LENGTH_SHORT).show()
+            }
+            is UpdateResult.RepoNotFoundOrPrivate -> {
+                Toast.makeText(context, "Erro: Repositório privado ou inexistente. Altere o repo para Público no GitHub para checar atualizações.", Toast.LENGTH_LONG).show()
+            }
+            is UpdateResult.RateLimitOrForbidden -> {
+                Toast.makeText(context, "Erro: Limite de requisições do GitHub excedido.", Toast.LENGTH_LONG).show()
+            }
+            is UpdateResult.Error -> {
+                Toast.makeText(context, "Falha na busca: ${result.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

@@ -76,10 +76,8 @@ fun ReportsScreen(viewModel: TimeTrackerViewModel) {
                                 onClick = {
                                     showMenu = false
                                     scope.launch {
-                                        val found = com.example.utils.UpdateManager.checkForUpdates(context)
-                                        if (!found) {
-                                            android.widget.Toast.makeText(context, "Nenhuma atualização encontrada.", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
+                                        val result = com.example.utils.UpdateManager.checkForUpdates(context)
+                                        com.example.utils.UpdateManager.handleUpdateResult(context, result)
                                     }
                                 },
                                 leadingIcon = {

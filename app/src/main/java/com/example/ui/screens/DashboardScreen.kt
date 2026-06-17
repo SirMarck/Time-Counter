@@ -79,10 +79,8 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
                                 onClick = {
                                     showMenu = false
                                     scope.launch {
-                                        val found = UpdateManager.checkForUpdates(context)
-                                        if (!found) {
-                                            Toast.makeText(context, "Nenhuma atualização encontrada.", Toast.LENGTH_SHORT).show()
-                                        }
+                                        val result = UpdateManager.checkForUpdates(context)
+                                        UpdateManager.handleUpdateResult(context, result)
                                     }
                                 },
                                 leadingIcon = {
