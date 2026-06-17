@@ -100,6 +100,18 @@ class TimeTrackerViewModel(private val repository: TimeTrackerRepository) : View
             repository.deleteClientById(id)
         }
     }
+
+    fun updateSession(session: Session) {
+        viewModelScope.launch {
+            repository.updateSession(session)
+        }
+    }
+
+    fun deleteSession(id: Long) {
+        viewModelScope.launch {
+            repository.deleteSessionById(id)
+        }
+    }
 }
 
 class TimeTrackerViewModelFactory(private val repository: TimeTrackerRepository) : ViewModelProvider.Factory {

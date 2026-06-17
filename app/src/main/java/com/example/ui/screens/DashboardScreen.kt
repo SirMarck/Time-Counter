@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +31,7 @@ import androidx.compose.material.icons.filled.Settings
 
 import com.example.ui.theme.luxBorder
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(viewModel: TimeTrackerViewModel) {
     val clients by viewModel.clients.collectAsState()
@@ -39,6 +41,11 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
     var showStartDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+
+    var selectedSessionForOptions by remember { mutableStateOf<Session?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -180,7 +187,13 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(completedSessions) { session ->
                         val client = clients.find { it.id == session.clientId }
-                        SessionItem(session, client)
+                        SessionItem(
+                            session = session,
+                            client = client,
+                            onLongClick = {
+                                selectedSessionForOptions = session
+                            }
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -200,6 +213,123 @@ fun DashboardScreen(viewModel: TimeTrackerViewModel) {
 
         if (showSettingsDialog) {
             CompanySettingsDialog(onDismiss = { showSettingsDialog = false })
+        }
+
+        if (selectedSessionForOptions != null) {
+            AlertDialog(
+                onDismissRequest = { selectedSessionForOptions = null },
+                title = { Text("Opções do Trabalho") },
+                text = { Text("Escolha uma ação para o trabalho selecionado:") },
+                confirmButton = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                showRenameDialog = true
+                            }
+                        ) {
+                            Text("Renomear")
+                        }
+                        Button(
+                            onClick = {
+                                showDeleteConfirmDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text("Deletar")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { selectedSessionForOptions = null }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (showRenameDialog && selectedSessionForOptions != null) {
+            var newDescription by remember(selectedSessionForOptions) { mutableStateOf(selectedSessionForOptions!!.description) }
+            AlertDialog(
+                onDismissRequest = { 
+                    showRenameDialog = false 
+                    selectedSessionForOptions = null
+                },
+                title = { Text("Renomear Trabalho") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Edite a descrição do seu registro de trabalho:")
+                        OutlinedTextField(
+                            value = newDescription,
+                            onValueChange = { newDescription = it },
+                            label = { Text("Descrição") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.updateSession(selectedSessionForOptions!!.copy(description = newDescription))
+                            showRenameDialog = false
+                            selectedSessionForOptions = null
+                        }
+                    ) {
+                        Text("Salvar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { 
+                            showRenameDialog = false 
+                            selectedSessionForOptions = null
+                        }
+                    ) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (showDeleteConfirmDialog && selectedSessionForOptions != null) {
+            AlertDialog(
+                onDismissRequest = { 
+                    showDeleteConfirmDialog = false 
+                    selectedSessionForOptions = null
+                },
+                title = { Text("Deletar Trabalho") },
+                text = { Text("Tem certeza que deseja deletar este registro de trabalho? Esta ação não pode ser desfeita.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteSession(selectedSessionForOptions!!.id)
+                            showDeleteConfirmDialog = false
+                            selectedSessionForOptions = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Text("Deletar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { 
+                            showDeleteConfirmDialog = false 
+                            selectedSessionForOptions = null
+                        }
+                    ) {
+                        Text("Cancelar")
+                    }
+                }
+            )
         }
     }
 }
@@ -354,11 +484,16 @@ fun PauseIcon(color: androidx.compose.ui.graphics.Color) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SessionItem(session: Session, client: Client?) {
+fun SessionItem(session: Session, client: Client?, onLongClick: () -> Unit) {
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClick
+            )
             .luxBorder(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
